@@ -15,7 +15,11 @@ sts_with_10k = {st: count for st, count in counts.items() if count >= 10000}
 
 st_groups = {}
 for st_num, _ in sts_with_10k.items():
-    st_groups[f"st{st_num}"] = mlst_calls[mlst_calls[2] == st_num][0].str.split('.').str[0].tolist()
+    st_groups[f"st{st_num}"] = (
+        mlst_calls[mlst_calls[2].astype(str) == str(st_num)][0]
+        .str.split('.').str[0]
+        .tolist()
+    )
 
 # want to fetch collection dates and country for all samples in these STs, and also instrument platform and library strategy (to find long-read data)
 con = sqlite3.connect("atb.metadata.202408.sqlite")

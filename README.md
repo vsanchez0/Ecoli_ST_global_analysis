@@ -1,7 +1,7 @@
 # Ecoli_ST_global_analysis
 
 ### Overview
-This repository corresponds to our project investigating how antimicrobial resistance (AMR) gene contenet shapes global dispersion patterns of *Escherichia coli* sequence types (STs).
+This repository corresponds to our project investigating how antimicrobial resistance (AMR) gene content shapes global dispersion patterns of *Escherichia coli* sequence types (STs).
 
 ### Research Aims
 We seek to determine whether *E. coli* STs exhibit consistent, predictable relationships among:
