@@ -12,9 +12,9 @@ We seek to determine whether *E. coli* STs exhibit consistent, predictable relat
 ### Methods
 **1. Genomic Data Collection**
 * Collection of publicly available *E. coli* genome sequences with associated metadata
-- [ ] Select four STs with around 10,000 samples per ST
-- [ ] Figure out which sequences have corresponding granular time and location data (months, states)
-- [ ] Figure out how many of these samples have long read data
+- [x] Select four STs with around 10,000 samples per ST
+- [x] Figure out which sequences have corresponding granular time and location data (months, states)
+- [x] Figure out how many of these samples have long read data
 - [ ] Download assemblies
 
 **2. AMR Gene Profiling**
