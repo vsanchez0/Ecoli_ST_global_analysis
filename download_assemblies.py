@@ -3,6 +3,7 @@ import subprocess
 import requests
 import sqlite3
 import os
+import glob
 
 OUT_DIR = "assemblies"
 ATB_FILE_INDEX = "https://osf.io/download/r6gcp"
@@ -10,8 +11,8 @@ os.makedirs(OUT_DIR, exist_ok=True)
 
 # all relevant samples with month-level collection date and country info, across the 5 most common sts
 target_samples = set()
-for name in ['st11', 'st10', 'st131', 'st152', 'st245']:
-    df = pd.read_csv(f"tables/{name}_metadata.csv")
+for meta_file in glob.glob('./tables/*metadata.csv'):
+    df = pd.read_csv(meta_file)
     df[['year', 'month', 'day']] = df['collection_date'].str.split('-', expand=True).reindex(columns=[0,1,2])
     has_month = df[df['month'].notnull() & df['country'].notnull()].drop_duplicates(subset='sample_accession')
     target_samples.update(has_month['sample_accession'].tolist())

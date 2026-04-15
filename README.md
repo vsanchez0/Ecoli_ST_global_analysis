@@ -15,12 +15,12 @@ We seek to determine whether *E. coli* STs exhibit consistent, predictable relat
 - [x] Select four STs with around 10,000 samples per ST
 - [x] Figure out which sequences have corresponding granular time and location data (months, states)
 - [x] Figure out how many of these samples have long read data
-- [ ] Download assemblies
+- [x] Download assemblies
 
 **2. AMR Gene Profiling**
 * AMR gene detection using CARD/RGI
-- [ ] Annotate assemblies
+- [x] Annotate assemblies
 
 **3. Phylogenetic Reconstruction**
-* Core-genome alignmnet and phylogenetic inference per ST (Gubbins)
-* Ancestral state reconstruction of AMR gene gain/loss events (DTA)
+* [ ] Core-genome alignment and phylogenetic inference per ST (Gubbins)
+* [ ] Ancestral state reconstruction of AMR gene gain/loss events (DTA)

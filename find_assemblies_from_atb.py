@@ -103,3 +103,5 @@ ax.set_title("Sample metadata availability by ST")
 ax.legend()
 plt.tight_layout()
 plt.savefig("figures/st_metadata_summary.png", dpi=300)
+
+print("\nFinished. Files saved to: figures/st_metadata_summary.png")
