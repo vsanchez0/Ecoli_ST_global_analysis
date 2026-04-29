@@ -22,5 +22,6 @@ We seek to determine whether *E. coli* STs exhibit consistent, predictable relat
 - [x] Annotate assemblies
 
 **3. Phylogenetic Reconstruction**
-* [ ] Core-genome alignment and phylogenetic inference per ST (Gubbins)
+* [x] Generate core-genome alignment (Gubbins)
+* [ ] Phylogenetic inference per ST with subsampling (BEAST2)
 * [ ] Ancestral state reconstruction of AMR gene gain/loss events (DTA)
