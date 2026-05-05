@@ -228,55 +228,98 @@ def _abbrev_from_name(full_name: str) -> str | None:
     return _NAME_TO_ABBREV.get(full_name)
 
 
+LONG_READ_PLATFORMS = {'OXFORD_NANOPORE', 'PACBIO_SMRT'}
+
+
+def has_long_read(platform_str) -> bool:
+    """Return True if the instrument_platform indicates long-read sequencing."""
+    if not isinstance(platform_str, str):
+        return False
+    return platform_str.strip().upper() in LONG_READ_PLATFORMS
+
+
+import datetime as _dt
+
+
+def _to_decimal_year(year: int, month: int = 6, day: int = 15) -> float:
+    """Convert a calendar date to a decimal year (e.g. 2015.37)."""
+    date = _dt.date(year, month, day)
+    year_start = _dt.date(year, 1, 1)
+    year_end   = _dt.date(year + 1, 1, 1)
+    return year + (date - year_start).days / (year_end - year_start).days
+
+
+def _parse_decimal_year(s: str) -> float | None:
+    """Return a decimal year for a YYYY, YYYY-MM, or YYYY-MM-DD string."""
+    s = s.strip()[:10]
+    try:
+        if re.fullmatch(r'\d{4}-\d{2}-\d{2}', s):
+            yr, mo, dy = int(s[:4]), int(s[5:7]), int(s[8:10])
+            return _to_decimal_year(yr, mo, dy)
+        if re.fullmatch(r'\d{4}-\d{2}', s):
+            yr, mo = int(s[:4]), int(s[5:7])
+            if 1 <= mo <= 12:
+                return _to_decimal_year(yr, mo, 15)
+        if re.fullmatch(r'\d{4}', s):
+            return float(s) + 0.5
+    except (ValueError, OverflowError):
+        pass
+    return None
+
+
 # treetime date format helper
 def format_date_treetime(d):
     """
-    Convert a collection_date string to a TreeTime-compatible decimal year,
-    or a YYYY-MM-DD / YYYY-MM string with uncertainty expressed as a range
-    in the format [YYYY-MM-DD:YYYY-MM-DD] that TreeTime accepts.
+    Convert a collection_date string to a TreeTime-compatible format.
 
-    TreeTime accepts:
-      • YYYY-MM-DD          (exact date)
-      • YYYY-MM             (treated as mid-month)
-      • [YYYY-MM-DD:YYYY-MM-DD]   (date range / ambiguous)
+    TreeTime accepts: YYYY-MM-DD, YYYY-MM, YYYY, or a decimal year float.
 
-    We emit YYYY-MM for month-precision dates and a range for slash-delimited
-    ambiguous entries.
+    Edge cases handled:
+    - YYYY-WW  (ISO week notation, e.g. '2015-17'): converted to decimal year
+      of the Wednesday of that week.
+    - Slash-delimited ranges (e.g. '2015-01/2016-07'): midpoint returned as a
+      decimal year. The bracket range format [A:B] triggers a bug in TreeTime
+      when dates lack a day component, so we avoid it entirely.
+    - YYYY only: returned as decimal year (mid-year).
     """
     if pd.isna(d):
         return 'XX'
 
     d = str(d).strip()
 
-    # slash-delimited range e.g. "2020-01/2020-03" or "2020-01 / 2020-03"
+    # slash-delimited range e.g. "2020-01/2020-03"
     if '/' in d:
         parts = [p.strip() for p in d.split('/')]
-        formatted = []
-        for p in parts:
-            p = p[:10]
-            if len(p) == 7:
-                formatted.append(p)
-            elif len(p) == 10:
-                formatted.append(p)
-            else:
-                formatted.append(p[:7])
-        if len(formatted) == 2:
-            return f"[{formatted[0]}:{formatted[1]}]"
-        return formatted[0]
+        dec_years = [_parse_decimal_year(p) for p in parts]
+        dec_years = [y for y in dec_years if y is not None]
+        if dec_years:
+            return str(round(sum(dec_years) / len(dec_years), 4))
+        return 'XX'
 
     # full date YYYY-MM-DD
-    if len(d) == 10 and d[4] == '-' and d[7] == '-':
+    if re.fullmatch(r'\d{4}-\d{2}-\d{2}', d):
         return d
 
-    # YYYY-MM
-    if len(d) == 7 and d[4] == '-':
-        return d
+    # YYYY-MM or YYYY-WW
+    if re.fullmatch(r'\d{4}-\d{2}', d):
+        num = int(d[5:7])
+        year = int(d[:4])
+        if 1 <= num <= 12:
+            return d  # valid month → pass through as YYYY-MM
+        # ISO week number (e.g. 2015-17 means week 17 of 2015)
+        try:
+            # %W treats week 1 as the week containing the first Monday;
+            # use Wednesday (%w=3) as the representative day
+            dt = _dt.datetime.strptime(f'{year}-{num:02d}-3', '%Y-%W-%w')
+            return str(round(_to_decimal_year(dt.year, dt.month, dt.day), 4))
+        except ValueError:
+            return str(year)  # fall back to year only
 
-    # YYYY only → emit as mid-year range
+    # YYYY only → mid-year decimal
     if re.fullmatch(r'\d{4}', d):
-        return f"[{d}-01-01:{d}-12-31]"
+        return str(float(d) + 0.5)
 
-    # try pandas parsing as fallback
+    # try pandas as a last resort
     try:
         dt = pd.to_datetime(d)
         return dt.strftime('%Y-%m-%d')
@@ -366,13 +409,18 @@ def weighted_subsample(df, n, random_state=42):
         pool = eligible[eligible['_ym'] == m].copy()
         pop_weights = pool['state'].map(
             lambda s: STATE_POPULATION.get(s, 1)
-        ).astype(float)
-        pop_weights /= pop_weights.sum()
-        chosen = pool.sample(
-            n=min(quota, len(pool)),
-            weights=pop_weights,
-            random_state=int(rng.integers(1 << 31)),
+        ).astype(float).values
+        pop_weights = pop_weights + 1e-6
+        pop_weights = pop_weights / pop_weights.sum()
+
+        n_draw = min(quota, len(pool))
+        chosen_idx = rng.choice(
+            len(pool),
+            size=n_draw,
+            replace=False,
+            p=pop_weights,
         )
+        chosen = pool.iloc[chosen_idx]
         pieces.append(chosen)
 
     sampled = pd.concat(pieces, ignore_index=True)
@@ -407,6 +455,10 @@ for meta_file in glob.glob('./tables/*metadata.csv'):
     has_month['hhs_region'] = has_month['state'].apply(
         lambda s: STATE_TO_HHS.get(s) if s else None
     )
+    if 'instrument_platform' in has_month.columns:
+        has_month['has_long_read'] = has_month['instrument_platform'].apply(has_long_read)
+    else:
+        has_month['has_long_read'] = False
 
     rows = []
     for target in targets:
@@ -434,9 +486,9 @@ for meta_file in glob.glob('./tables/*metadata.csv'):
 
         dates_path = f'./tables/{prefix}_dates.txt'
         with open(dates_path, 'w') as f:
-            f.write("name\tdate\n")
+            f.write("name,date\n")
             for _, row in date_rows.iterrows():
-                f.write(f"{row['sample_accession']}\t{row['treetime_date']}\n")
+                f.write(f"{row['sample_accession']},{row['treetime_date']}\n")
         print(f"Wrote {len(date_rows)} dates to {dates_path}")
 
         meta_out_path = f'./tables/{prefix}_metadata_with_hhs.csv'
@@ -450,7 +502,7 @@ os.makedirs('./gubbins', exist_ok=True)
 
 for ref_file in glob.glob('./reference_genomes/*_reference.fa*'):
     st_name = os.path.basename(ref_file).split('_reference.fa')[0]
-    if os.path.exists(os.path.join('./gubbins', st_name)):
+    if os.path.exists(os.path.join(f'./gubbins', '{st_name}_down100.final_tree.tre')):
         print(f"Skipping {st_name}, results already exist.")
         continue
 
@@ -473,6 +525,11 @@ for ref_file in glob.glob('./reference_genomes/*_reference.fa*'):
     ].drop_duplicates(subset='sample_accession').copy()
     st_meta['state'] = st_meta['country'].apply(parse_usa_state)
 
+    if 'instrument_platform' in st_meta.columns:
+        st_meta['has_long_read'] = st_meta['instrument_platform'].apply(has_long_read)
+    else:
+        st_meta['has_long_read'] = False
+
     # only usa first
     st_meta_usa = st_meta[st_meta['state'].notna()].copy()
 
@@ -482,9 +539,11 @@ for ref_file in glob.glob('./reference_genomes/*_reference.fa*'):
 
     # weighted downsample
     sampled = weighted_subsample(st_meta_usa, n=N_SUBSAMPLE)
+    n_long_read = sampled['has_long_read'].sum() if 'has_long_read' in sampled.columns else 0
     print(
         f"  {st_name}: {len(st_meta_usa)} USA samples with state → "
-        f"downsampled to {len(sampled)}"
+        f"downsampled to {len(sampled)} "
+        f"({n_long_read} with long-read data)"
     )
 
     # write filtered isolate list
@@ -509,6 +568,21 @@ for ref_file in glob.glob('./reference_genomes/*_reference.fa*'):
         f"--reference {ref_file} "
         f"--input {downsampled_list_path} "
         f"--out {os.path.join('./gubbins', st_name)}"
+    )
+
+    os.system(
+        f"run_gubbins.py "
+        f"--prefix ./gubbins/{st_name}_down100 "
+        f"--first-tree-builder iqtree-fast "
+        f"--first-model GTR "
+        f"--tree-builder raxmlng "
+        f"--model GTR "
+        f"--date ./tables/{st_name}_dates.txt "
+        f"--iterations 10 "
+        f"--converge-method recombination "
+        f"--min-snps 2 "
+        f"--threads 8 "
+        f"./gubbins/{st_name}"
     )
 
 print("Finished. Files saved to: gubbins/")
