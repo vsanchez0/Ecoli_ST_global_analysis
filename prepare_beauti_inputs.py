@@ -39,23 +39,15 @@ except ImportError:
     sys.exit('biopython is required: conda install -c conda-forge biopython')
 
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
 GUBBINS_DIR  = './gubbins'
 TABLES_DIR   = './tables'
-RGI_DIR      = './rgi_results'          # RGI output directory (one file per isolate)
+RGI_DIR      = './rgi_results'
 BEAUTI_DIR   = './beauti_inputs'
 
-# RGI column names (may vary slightly by RGI version)
 RGI_SAMPLE_COL  = 'Best_Hit_ARO'
 RGI_CUT_OFF     = 'Cut_Off'      # "Strict" or "Perfect" hits only
 RGI_VALID_CUTS  = {'Strict', 'Perfect'}
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def decimal_year(date_str: str) -> float | None:
     """Convert YYYY-MM-DD (or YYYY-MM or YYYY) to decimal year."""
@@ -163,10 +155,6 @@ def write_amr_fasta(pa: pd.DataFrame, out_path: str, gene_map_path: str) -> None
     gene_map.to_csv(gene_map_path, sep='\t', index=False)
 
 
-# ---------------------------------------------------------------------------
-# Main per-ST logic
-# ---------------------------------------------------------------------------
-
 def process_st(st_name: str, clade_isolates_path: str | None = None,
                alignment_path: str | None = None) -> None:
     print(f'\n=== {st_name} ===')
@@ -271,10 +259,6 @@ def process_st(st_name: str, clade_isolates_path: str | None = None,
     print(f'  BEAUti inputs ready in {out_dir}/')
     print('  Next: open BEAUti, load template XML, import alignment and trait files.')
 
-
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description='Prepare BEAUti/BEAST input files')
