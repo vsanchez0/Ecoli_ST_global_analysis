@@ -1,8 +1,10 @@
 """
-In order for treetime to run as expected, gubbins divergence tree output must be normalized to convey branch lengths that represent
-substitution rate / site. This is done by dividing each branch length by genome length.
+In order for TreeTime to run as expected, Gubbins divergence tree output must be normalized
+to convey branch lengths that represent substitution rate / site. This is done by dividing
+each branch length by genome length.
 
-Ex: python3 5.\ normalize_newick.py --input ./gubbins/st131.final_tree.tre --output ./gubbins/st131_norm.final_tree.tre --gen-length 5109767
+Usage:
+    python3 normalize_newick.py --input ./gubbins/st131.final_tree.tre --output ./gubbins/st131_norm.final_tree.tre --gen-length 5109767
 """
 
 import re

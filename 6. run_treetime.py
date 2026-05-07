@@ -7,8 +7,8 @@ This step sits between Gubbins and BEAST in the pipeline:
   3. Filtered alignment (outliers removed) goes into BEAUti/BEAST
 
 Usage:
-    python run_treetime.py --st st131
-    python run_treetime.py  # runs all STs found in gubbins/
+    python3 run_treetime.py --st st131
+    python3 run_treetime.py  # runs all STs found in gubbins/
 """
 
 import argparse
@@ -24,7 +24,7 @@ TREETIME_OUTDIR = './treetime'
 def find_gubbins_tree(st_name: str) -> str | None:
     candidates = [
         os.path.join(GUBBINS_DIR, f'{st_name}_norm.nwk'),
-        os.path.join(GUBBINS_DIR, f'{st_name}_down100.node_labelled.final_tree.tre'),
+        os.path.join(GUBBINS_DIR, f'{st_name}.node_labelled.final_tree.tre'),
     ]
     for c in candidates:
         if os.path.exists(c):
@@ -64,7 +64,7 @@ def run_treetime(st_name: str, clock_rate: float | None = None) -> None:
         f'--date-column date '
         f'--outdir "{outdir}" '
         f'--reroot best '
-        f'--aln {GUBBINS_DIR}/{st_name}_down100.filtered_polymorphic_sites.fasta'
+        f'--aln {GUBBINS_DIR}/{st_name}.filtered_polymorphic_sites.fasta'
         f'{clock_flag}'
     )
     print(f'[{st_name}] Running: {cmd}')
