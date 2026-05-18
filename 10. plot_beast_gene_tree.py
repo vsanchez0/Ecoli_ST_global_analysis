@@ -13,21 +13,21 @@ GENES = [
     {
         "key":   "sul1",
         "label": "sul1",
-        "file":  "beast_output/st131/clade_1/sul1.trees",
+        "file":  "st131_clades/sul1/sul1_clade_1.nwk",
     },
     {
         "key":   "sul2",
         "label": "sul2",
-        "file":  "beast_output/st131/clade_1/sul2.trees",
+        "file":  "st131_clades/sul2/sul2_clade_1.nwk",
     },
     {
         "key":   "Escherichia_coli_mdfA",
         "label": "mdfA",
-        "file":  "beast_output/st131/clade_1/Escherichia_coli_mdfA.trees",
+        "file":  "st131_clades/mdfA/Escherichia_coli_mdfA_clade_1.nwk",
     },
 ]
 
-OUTPUT = "figures/st131_clade1_sul1_sul2_mdfA_beast_tree.png"
+OUTPUT = "figures/test.png"
 
 GENE_PALETTE = [
     "#D4A020",   # Kyburg Gold
@@ -62,17 +62,37 @@ def parse_translate_block(text):
 
 
 def extract_last_tree_newick(filepath):
-    """Return (translate_map, newick_string) for the last sampled tree."""
+    """
+    Return (translate_map, newick_string) for the last sampled tree.
+ 
+    Handles three formats:
+      - BEAST .trees nexus  (Translate block + 'tree STATE_...' lines)
+      - Generic NEXUS       ('tree ...' lines, no Translate block)
+      - Plain Newick        (one or more bare Newick strings; last line used)
+    """
     with open(filepath) as f:
         text = f.read()
-    translate_map = parse_translate_block(text)
-    trees = re.findall(
-        r'^tree\s+STATE_\d+\s*=\s*\[.*?\]\s*(.+)$',
-        text, re.MULTILINE,
+ 
+    nexus_trees = re.findall(
+        r'^tree\s+\S+\s*=\s*(?:\[[^\]]*\]\s*)?(.+)$',
+        text, re.MULTILINE | re.IGNORECASE,
     )
-    if not trees:
-        raise ValueError(f"No trees found in {filepath}")
-    return translate_map, trees[-1].strip()
+    if nexus_trees:
+        translate_map = parse_translate_block(text)
+        return translate_map, nexus_trees[-1].strip()
+ 
+    newick_lines = [
+        ln.strip() for ln in text.splitlines()
+        if ln.strip().startswith('(')
+    ]
+    if newick_lines:
+        return {}, newick_lines[-1]
+ 
+    raise ValueError(
+        f"No recognisable tree found in {filepath}.\n"
+        "Expected a BEAST/NEXUS file with 'tree ... = ...' lines, "
+        "or a plain Newick file whose tree lines begin with '('."
+    )
 
 
 def load_baltic_tree(newick_string, translate_map):
