@@ -44,7 +44,7 @@ OUT_DIR        = './st131_clades'
 ASSEMBLIES_DIR = './assemblies'
 MAX_YEARS      = 50
 
-ECOLI_MUTATION_RATE = 5e-7
+ECOLI_MUTATION_RATE = 7e-7
 
 
 def load_tree(tree_path: str) -> dendropy.Tree:
@@ -146,17 +146,6 @@ def cluster_by_pairwise_distance(
     For every pair of tips (i, j):
         - if patristic_distance(i, j) <= threshold  →  connect them (edge = 1)
         - otherwise                                  →  no edge (0)
-
-    Connected components of that graph are the clades.  This works correctly
-    on unrooted trees because it never references a root.
-
-    The iterative logic from the PI discussion:
-        Start at tip 1, find all tips within threshold → cluster 1.
-        Next unassigned tip → find all within threshold.
-        If any of those already belong to an existing cluster, merge.
-        Singletons (nothing within threshold) become their own cluster.
-
-    Scipy connected_components does exactly this in one efficient step.
 
     Parameters
     ----------
