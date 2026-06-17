@@ -474,7 +474,8 @@ def build_xml(aln_name, aln_records, gene_map, amr_records, locations,
     # Loggers
     # =========================================================================
     L.append(f'        <logger id="tracelog" spec="Logger" fileName="$(filebase).log" '
-             f'logEvery="{log_every}" model="@posterior" sanitiseHeaders="true" sort="smart">')
+            #  f'logEvery="{log_every}" model="@posterior" sanitiseHeaders="true" sort="smart">')
+            f'logEvery="{log_every}" sanitiseHeaders="true" sort="smart">')
     L.append(f'            <log idref="posterior"/>')
     L.append(f'            <log idref="likelihood"/>')
     L.append(f'            <log idref="prior"/>')

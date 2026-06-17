@@ -23,5 +23,19 @@ We seek to determine whether *E. coli* STs exhibit consistent, predictable relat
 
 **3. Phylogenetic Reconstruction**
 * [x] Generate core-genome alignment (Gubbins)
+* [ ] Temporal signal check and outlier detection (TreeTime)
+* [ ] Split ST131 into sub-clades sharing MRCA within ~50 years; rerun alignment per clade
 * [ ] Phylogenetic inference per ST with subsampling (BEAST2)
 * [ ] Ancestral state reconstruction of AMR gene gain/loss events (DTA)
+
+**4. BEAUti / BEAST XML Setup**
+* [ ] Prepare per-ST alignment FASTA with tip dates embedded in sequence names (`isolate|YYYY-MM-DD`)
+* [ ] Prepare binary AMR trait file (isolate × gene presence/absence matrix; exclude genes at 0% or 100% prevalence)
+* [ ] Prepare discrete location trait file (HHS region per isolate)
+* [ ] Import alignment + traits into BEAUti using template XML; confirm DTA model setup
+* [ ] Run BEAST DTA for AMR genes and HHS migration
+
+**5. Visualization & Interpretation**
+* [ ] Flag long-read (Oxford Nanopore / PacBio) isolates in metadata for tree annotation
+* [ ] Visualize flagged long-read isolates on trees
+* [ ] Plot AMR gene gain/loss events mapped onto time-scaled tree

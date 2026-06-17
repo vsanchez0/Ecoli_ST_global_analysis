@@ -314,6 +314,23 @@ def _parse_decimal_year(s: str) -> float | None:
         pass
     return None
 
+def normalize_collection_date(date_str):
+    """
+    Return collection_date as YYYY-MM-DD (or as much as is known).
+    Handles DD-Mon-YYYY (e.g. '15-Jul-2009') in addition to standard formats.
+    """
+    if pd.isna(date_str):
+        return date_str
+    d = str(date_str).strip()
+    m = re.fullmatch(r'(\d{1,2})-([A-Za-z]{3})-(\d{4})', d)
+    if m:
+        try:
+            dt = _dt.datetime.strptime(d, '%d-%b-%Y')
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            pass
+    return d
+
 
 # treetime date format helper
 def format_date_treetime(d):
@@ -343,6 +360,15 @@ def format_date_treetime(d):
         if dec_years:
             return str(round(sum(dec_years) / len(dec_years), 4))
         return 'XX'
+
+    # DD-Mon-YYYY (e.g. "15-Jul-2009")
+    m = re.fullmatch(r'(\d{1,2})-([A-Za-z]{3})-(\d{4})', d)
+    if m:
+        try:
+            dt = _dt.datetime.strptime(d.strip(), '%d-%b-%Y')
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            pass
 
     # full date YYYY-MM-DD
     if re.fullmatch(r'\d{4}-\d{2}-\d{2}', d):
@@ -487,6 +513,7 @@ for root, dirs, files in os.walk('./assemblies'):
 for meta_file in glob.glob('./tables/*metadata.csv'):
     targets = set()
     df = pd.read_csv(meta_file)
+    df['collection_date'] = df['collection_date'].apply(normalize_collection_date)
     df[['year', 'month', 'day']] = (
         df['collection_date']
         .str.split('-', expand=True)
@@ -565,6 +592,7 @@ for ref_file in glob.glob('./reference_genomes/*_reference.fa*'):
         continue
 
     st_meta = pd.read_csv(meta_path)
+    st_meta['collection_date'] = st_meta['collection_date'].apply(normalize_collection_date)
     st_meta[['year', 'month', 'day']] = (
         st_meta['collection_date']
         .str.split('-', expand=True)
