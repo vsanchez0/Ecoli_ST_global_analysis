@@ -1,0 +1,7 @@
+clade	n_tips	n_dated	year_min	year_max	year_median	span_years	n_locations	geo_entropy	top_location	top_loc_count	top_loc_frac	flagged
+Clade A	681	681	1999	2023	2018	24	52	4.311	Australia	146	0.214	False
+Clade B	323	323	1997	2023	2018	26	32	4.058	United Kingdom	61	0.189	False
+Clade B0	58	58	2007	2022	2016	15	14	3.39	Canada	16	0.276	False
+Clade C0	99	99	2006	2022	2019	16	23	3.338	United Kingdom	31	0.313	False
+Clade C1	2905	2905	1990	2023	2017	33	72	4.531	Canada	463	0.159	False
+Unassigned	83	83	2008	2022	2018	14	17	3.464	Canada	14	0.169	False
