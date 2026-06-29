@@ -1,7 +1,7 @@
 """
 Prepare input files for BEAUti / BEAST DTA analysis.
 
-Produces three files per ST (or per clade) that are referenced by the template XML:
+Produces:
 
   1. <st>_alignment.fasta
        Gubbins filtered alignment with tip names renamed to isolate|YYYY-MM-DD
@@ -16,11 +16,6 @@ Produces three files per ST (or per clade) that are referenced by the template X
   3. <st>_locations.txt
        Tab-delimited HHS region per isolate.
        Columns: name, hhs_region
-
-Usage:
-    python prepare_beauti_inputs.py --st st131
-    python prepare_beauti_inputs.py --st st131 --clade-isolates st131_clades/clade_1_isolates.txt
-    python prepare_beauti_inputs.py  # all STs
 """
 
 import argparse
@@ -77,6 +72,28 @@ def load_metadata(st_name: str) -> pd.DataFrame:
     if not os.path.exists(path):
         return pd.DataFrame()
     return pd.read_csv(path)
+
+
+def load_treetime_dates(path: str) -> dict[str, str]:
+    """
+    Load dates from a TreeTime dates TSV.
+    Expected header: #node  date  numeric_date
+    Returns a dict mapping node name -> date string (YYYY-MM-DD or YYYY-MM or YYYY).
+    Rows with '--' as the date are included as-is; callers are responsible for
+    filtering them out via the excluded_sids mechanism.
+    """
+    date_map = {}
+    with open(path) as fh:
+        for line in fh:
+            if line.startswith('#'):
+                continue
+            parts = line.rstrip('\n').split('\t')
+            if len(parts) < 2:
+                continue
+            node, date_str = parts[0], parts[1]
+            if node and date_str:
+                date_map[node] = date_str
+    return date_map
 
 
 def load_rgi_for_st(st_name: str, sample_ids: list[str]) -> pd.DataFrame:
@@ -156,12 +173,12 @@ def write_amr_fasta(pa: pd.DataFrame, out_path: str, gene_map_path: str) -> None
 
 
 def process_st(st_name: str, clade_isolates_path: str | None = None,
-               alignment_path: str | None = None) -> None:
+               alignment_path: str | None = None,
+               treetime_dates_path: str | None = None) -> None:
     print(f'\n=== {st_name} ===')
     out_dir = os.path.join(BEAUTI_DIR, st_name)
     os.makedirs(out_dir, exist_ok=True)
 
-    # --- find Gubbins alignment ---
     if alignment_path:
         aln_path = alignment_path
         if not os.path.exists(aln_path):
@@ -179,7 +196,6 @@ def process_st(st_name: str, clade_isolates_path: str | None = None,
             print(f'  Pass --alignment to specify the file explicitly.')
             return
 
-    # --- load metadata ---
     meta = load_metadata(st_name)
     if meta.empty:
         print(f'  No metadata found for {st_name} — skipping.')
@@ -189,7 +205,24 @@ def process_st(st_name: str, clade_isolates_path: str | None = None,
     hhs_map  = dict(zip(meta['sample_accession'],
                         meta.get('hhs_region', pd.Series(dtype=str))))
 
-    # --- filter to clade isolates if supplied ---
+    if treetime_dates_path:
+        tt_dates = load_treetime_dates(treetime_dates_path)
+        if tt_dates:
+            date_map.update(tt_dates)
+            print(f'  Using TreeTime dates for {len(tt_dates)} node(s) '
+                  f'from {treetime_dates_path}')
+        else:
+            print(f'  Warning: --treetime-dates file {treetime_dates_path} '
+                  f'was empty or unreadable — falling back to metadata dates.')
+
+    if treetime_dates_path:
+        excluded_sids = {sid for sid, d in date_map.items() if d == '--'}
+        if excluded_sids:
+            print(f'  Excluding {len(excluded_sids)} sample(s) with "--" date from TreeTime.')
+            date_map = {sid: d for sid, d in date_map.items() if d != '--'}
+    else:
+        excluded_sids = set()
+
     if clade_isolates_path:
         with open(clade_isolates_path) as fh:
             keep_ids = {l.strip().split('\t')[0] for l in fh if l.strip()}
@@ -197,12 +230,13 @@ def process_st(st_name: str, clade_isolates_path: str | None = None,
     else:
         keep_ids = None
 
-    # --- rewrite alignment with BEAUti tip names ---
     records_out = []
     sample_ids  = []
     for rec in SeqIO.parse(aln_path, 'fasta'):
         sid = rec.id
         if keep_ids is not None and sid not in keep_ids:
+            continue
+        if sid in excluded_sids:
             continue
         date_str  = date_map.get(sid, '')
         new_label = beauti_date_label(sid, date_str)
@@ -226,7 +260,6 @@ def process_st(st_name: str, clade_isolates_path: str | None = None,
     else:
         pa = filter_amr_matrix(pa)
         if not pa.empty:
-            # rename index to BEAUti tip labels
             pa.index = [beauti_date_label(sid, date_map.get(sid, ''))
                         for sid in pa.index]
             pa.index.name = 'name'
@@ -239,7 +272,6 @@ def process_st(st_name: str, clade_isolates_path: str | None = None,
             print(f'  AMR gene map (col index → gene name): {amr_genemap_out}')
             print(f'  → Import {amr_fasta_out} into BEAUti as data type "Standard"')
 
-    # --- HHS location file ---
     loc_rows = []
     for sid in sample_ids:
         hhs = hhs_map.get(sid)
@@ -270,11 +302,16 @@ def main():
     parser.add_argument('--alignment', default=None,
                         help='Path to alignment FASTA. Overrides the default '
                              'gubbins/{st}/{st}.filtered_polymorphic_sites.fasta lookup.')
+    parser.add_argument('--treetime-dates', default=None,
+                        help='Path to TreeTime dates TSV with header '
+                             '"#node\\tdate\\tnumeric_date". Overrides collection_date '
+                             'from metadata. Samples with "--" as date are excluded.')
     args = parser.parse_args()
 
     if args.st:
         process_st(args.st, clade_isolates_path=args.clade_isolates,
-                   alignment_path=args.alignment)
+                   alignment_path=args.alignment,
+                   treetime_dates_path=args.treetime_dates)
     else:
         gubbins_sts = [
             os.path.basename(d)
@@ -285,7 +322,7 @@ def main():
             sys.exit(f'No ST directories found in {GUBBINS_DIR}/. '
                      'Run align_with_gubbins.py first.')
         for st in sorted(gubbins_sts):
-            process_st(st)
+            process_st(st, treetime_dates_path=args.treetime_dates)
 
     print(f'\nAll BEAUti inputs written to {BEAUTI_DIR}/')
 
